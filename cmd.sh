@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+script_dir=$(dirname "$(readlink "$0")")
+pkgs_dir="$script_dir/pkgs"
 cache_dir=~/.cache/bpk
 export TARGET_DIR=$HOME/.local/etc
 export BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
@@ -29,7 +31,7 @@ extract() {
 
 get_info_str() {
     info_prefix="^$1:"
-    command_str=$(grep "${info_prefix}" pkgs/"$pkg"/info)
+    command_str=$(grep "${info_prefix}" "$pkgs_dir/$pkg/info")
     cmd_len=${#command_str}
     info_str=${command_str[*]:2:$cmd_len}
 }
@@ -42,12 +44,16 @@ remove_old_version() {
     if [ -n "$info_str" ]; then
         # echo "rm"
         eval "rm -r $TARGET_DIR/$info_str*"
+    else
+        get_info_str "r"
+        echo "$info_str"
+        echo "rm r"
     fi
 }
 
 install_pkg() {
     pkg=$1
-    pkg_dir=pkgs/$pkg
+    pkg_dir="$pkgs_dir/$pkg"
     if [ -f "$pkg_dir"/url ]; then
         if ( grep -q -e all "$pkg_dir"/url ); then
             platform_url="$(grep all "$pkg_dir"/url)"
@@ -71,14 +77,16 @@ install_pkg() {
         filename=$(echo "$url" | awk -F '/' '{print $NF}')
         echo "$filename"
         filepath=$cache_dir/$filename
-        #curl -L -C - -o "$filepath" "$url"
+        curl -L -C - -o "$filepath" "$url"
         remove_old_version
         extract
         # link and other: eg. detach
-        bash pkgs/"$pkg"/link.sh
-
+        if [ -f "$pkg_dir/link.sh" ]; then
+            echo link
+            bash "$pkg_dir/link.sh"
+        fi
     else
-        echo "pkgs/$pkg/url doesn't exists"
+        echo "$pkg_dir/url doesn't exists"
     fi
 }
 
@@ -92,7 +100,7 @@ install_all() {
                 type "$pkg"
                 echo "$pkg already exists, use -f to force install."
             else
-                if [ -f pkgs/"$pkg"/info ]; then
+                if [ -f "$pkgs_dir/$pkg"/info ]; then
                     get_info_str "c"
                     # check pkgs/$pkg/info startwith c:
                     if command -v "$info_str" &> /dev/null
@@ -126,6 +134,16 @@ case $1 in
    s|search)
        shift
        echo "search"
+       cat "$pkgs_dir/$1/info"
+       ;;
+   info)
+       shift
+       if [ -f "$pkgs_dir/$1/info" ]; then
+           cat "$pkgs_dir/$1/info"
+       fi
+       ;;
+   l|list)
+       ls "$pkgs_dir"
        ;;
    *)
        echo help

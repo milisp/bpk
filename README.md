@@ -42,3 +42,10 @@ all|$url
 x86_64|$url
 arm64|$url
 ```
+
+### version or `x86_64_version` or `arm64_version`
+
+```md
+version|md5
+3.12.2|f88981146d943b5517140fa96e96f153
+```
